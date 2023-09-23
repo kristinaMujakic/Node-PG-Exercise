@@ -19,18 +19,41 @@ router.get('/', async function (req, res, next) {
 
 router.get('/:id', async function (req, res, next) {
     try {
-        const invoiceQuery = await db.query("SELECT id FROM invoices WHERE id = $1", [req.params.id]);
-        const companiesQuery = await db.query("SELECT comp_code WHERE id = $1", [req.params.comp_code]);
+        const { id } = req.params;
 
-        if (invoiceQuery.length === 0) {
-            throw new ExpressError(`Can't find invoice with id of ${req.params.id}`, 404);
+        const result = await db.query(
+            `SELECT i.id, 
+                  i.comp_code, 
+                  i.amt, 
+                  i.paid, 
+                  i.add_date, 
+                  i.paid_date, 
+                  c.name, 
+                  c.description 
+           FROM invoices AS i
+             INNER JOIN companies AS c ON (i.comp_code = c.code)  
+           WHERE id = $1`,
+            [id]);
+
+        if (result.rows.length === 0) {
+            throw new ExpressError(`No such invoice: ${id}`, 404);
         }
 
-        if (companiesQuery.length === 0) {
-            throw new ExpressError(`Can't find company with the code of ${req.params.comp_code}`, 404);
-        }
+        const data = result.rows[0];
+        const invoice = {
+            id: data.id,
+            company: {
+                code: data.comp_code,
+                name: data.name,
+                description: data.description,
+            },
+            amt: data.amt,
+            paid: data.paid,
+            add_date: data.add_date,
+            paid_date: data.paid_date,
+        };
 
-        return res.send({ invoice: invoiceQuery.rows[0], company: companiesQuery.rows[0] });
+        return res.json({ invoice: invoice });
     } catch (e) {
         return next(e);
     }
@@ -91,7 +114,7 @@ router.put('/:id', async function (req, res, next) {
 
 router.delete('/:id', async function (req, res, next) {
     try {
-        const result = await db.query("DELETE FROM invoices WHERE id = $1 RETURNING id", [req.params.id]);
+        const result = await db.query(`DELETE FROM invoices WHERE id = $1 RETURNING id`, [req.params.id]);
 
         if (result.rows.length === 0) {
             throw new ExpressError(`There is no invoice with the id of ${req.params.id}`, 404);

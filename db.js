@@ -1,9 +1,11 @@
 const { Client } = require('pg');
 const config = require('./config');
 
-const { username, password, database, hostname, port } = config;
+const { username, password, hostname, port } = config;
 
-const connectionString = `postgres://${username}:${password}@${hostname}/${database}`;
+const connectionString = (process.env.NODE_ENV === 'test')
+    ? `postgres://${username}:${password}@${hostname}:${port}/biztime_test`
+    : `postgres://${username}:${password}@${hostname}:${port}/biztime`;
 
 const client = new Client({
     connectionString: connectionString
@@ -19,4 +21,3 @@ client.connect()
     });
 
 module.exports = client;
-
